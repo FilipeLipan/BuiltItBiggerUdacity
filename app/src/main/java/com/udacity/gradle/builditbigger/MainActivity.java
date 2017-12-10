@@ -1,8 +1,10 @@
 package com.udacity.gradle.builditbigger;
 
 import android.app.ProgressDialog;
+import android.arch.lifecycle.ViewModelProviders;
 import android.content.Context;
 import android.os.Bundle;
+import android.support.annotation.Nullable;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.Menu;
@@ -23,6 +25,7 @@ import java.io.IOException;
 import io.reactivex.Observable;
 import io.reactivex.ObservableEmitter;
 import io.reactivex.ObservableOnSubscribe;
+import io.reactivex.Observer;
 import io.reactivex.android.schedulers.AndroidSchedulers;
 import io.reactivex.annotations.NonNull;
 import io.reactivex.observers.DisposableObserver;
@@ -30,12 +33,26 @@ import io.reactivex.schedulers.Schedulers;
 
 public class MainActivity extends AppCompatActivity {
 
-    ProgressDialog dialog;
+    ProgressDialog mDialog;
+    MainViewModel mViewModel;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        mViewModel = ViewModelProviders.of(this).get(MainViewModel.class);
+        mViewModel.getJoke().observe(this, new android.arch.lifecycle.Observer<String>() {
+            @Override
+            public void onChanged(@Nullable String joke) {
+                if(!isChangingConfigurations()) {
+                    if (mDialog != null) {
+                        mDialog.cancel();
+                    }
+                    startActivity(JokeTellerActivity.newIntent(MainActivity.this, joke));
+                }
+            }
+        });
     }
 
 
@@ -62,29 +79,32 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public void tellJoke(View view) {
-        dialog = ProgressDialog.show(MainActivity.this, "",
+        mDialog = ProgressDialog.show(MainActivity.this, "",
                 getString(R.string.loading), true);
-        getJoke()
-                .subscribeOn(Schedulers.io())
-                .observeOn(AndroidSchedulers.mainThread())
-                .subscribe(new DisposableObserver<String>() {
-                    @Override
-                    public void onNext(@NonNull String joke) {
-                        dialog.cancel();
-                        startActivity(JokeTellerActivity.newIntent(MainActivity.this, joke));
-                    }
 
-                    @Override
-                    public void onError(@NonNull Throwable e) {
-                        dialog.cancel();
-                        Toast.makeText(MainActivity.this, e.getMessage(), Toast.LENGTH_SHORT).show();
-                    }
+        mViewModel.loadJoke();
 
-                    @Override
-                    public void onComplete() {
-
-                    }
-                });
+//        getJoke()
+//                .subscribeOn(Schedulers.io())
+//                .observeOn(AndroidSchedulers.mainThread())
+//                .subscribe(new DisposableObserver<String>() {
+//                    @Override
+//                    public void onNext(@NonNull String joke) {
+//                        mDialog.cancel();
+//                        startActivity(JokeTellerActivity.newIntent(MainActivity.this, joke));
+//                    }
+//
+//                    @Override
+//                    public void onError(@NonNull Throwable e) {
+//                        mDialog.cancel();
+//                        Toast.makeText(MainActivity.this, e.getMessage(), Toast.LENGTH_SHORT).show();
+//                    }
+//
+//                    @Override
+//                    public void onComplete() {
+//
+//                    }
+//                });
     }
 
     public static Observable<String> getJoke() {
